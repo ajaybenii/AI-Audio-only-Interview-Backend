@@ -841,11 +841,11 @@
                 const bars = document.getElementById('networkBars');
                 const text = document.getElementById('networkSpeed');
 
-                if (latency < 100) {
+                if (latency < 200) {
                     networkQuality = 'good';
                     bars.className = 'network-bars';
                     text.textContent = `${latency}ms • Good`;
-                } else if (latency < 300) {
+                } else if (latency < 500) {
                     networkQuality = 'fair';
                     bars.className = 'network-bars fair';
                     text.textContent = `${latency}ms • Fair`;
@@ -853,8 +853,9 @@
                     networkQuality = 'poor';
                     bars.className = 'network-bars poor';
                     text.textContent = `${latency}ms • Poor`;
-                    // Notify AI about poor network
-                    if (isActive && ws?.readyState === WebSocket.OPEN) {
+                    // Notify AI about poor network (only once per poor detection)
+                    if (isActive && ws?.readyState === WebSocket.OPEN && !networkWarned) {
+                        networkWarned = true;
                         sendSystemMessage('[SYSTEM: User network is POOR - high latency detected]');
                     }
                 }
@@ -881,6 +882,8 @@
         let silenceWarningLevel = 0; // 0=none, 1=30s, 2=50s, 3=ending
         let aiIsSpeaking = false; // Track if AI is currently speaking
         let autoEndScheduled = false; // Track if auto-end is already scheduled
+        let autoEndTimeout = null; // Store timeout ID to cancel it
+        let networkWarned = false; // Only warn once about poor network
 
         // Interview Timer (30 minutes = 1800 seconds)
         const INTERVIEW_DURATION = 30 * 60; // 30 minutes
@@ -1007,9 +1010,11 @@
                 autoEndScheduled = true;
                 sendSystemMessage("[SYSTEM] Ending interview due to no response");
                 console.log('Auto-ending interview in 8 seconds...');
-                setTimeout(() => {
-                    console.log('Auto-end triggered!');
-                    stopInterview();
+                autoEndTimeout = setTimeout(() => {
+                    if (autoEndScheduled) { // Only end if still scheduled
+                        console.log('Auto-end triggered!');
+                        stopInterview();
+                    }
                 }, 8000);
             } else if (silentSeconds >= 50 && silenceWarningLevel < 2) {
                 silenceWarningLevel = 2;
@@ -1099,6 +1104,15 @@
                         if (msg.serverContent?.inputTranscription?.text) {
                             lastUserSpeechTime = Date.now();
                             silenceWarningLevel = 0;
+                            // Cancel auto-end if user speaks!
+                            if (autoEndScheduled) {
+                                autoEndScheduled = false;
+                                if (autoEndTimeout) {
+                                    clearTimeout(autoEndTimeout);
+                                    autoEndTimeout = null;
+                                    console.log('Auto-end cancelled - user spoke!');
+                                }
+                            }
 
                             const chunk = msg.serverContent.inputTranscription.text;
                             const isFinal = msg.serverContent.inputTranscription.isFinal;
