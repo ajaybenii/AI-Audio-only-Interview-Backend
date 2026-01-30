@@ -1,0 +1,1274 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Voice Interviewer - Holographic</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded" rel="stylesheet">
+    <style>
+        :root {
+            /* Night Mode (Default) */
+            --bg: #000000;
+            --surface: rgba(255, 255, 255, 0.04);
+            --border: rgba(255, 255, 255, 0.08);
+            --text: #ffffff;
+            --text-dim: rgba(255, 255, 255, 0.5);
+            --cyan: #00ffd5;
+            --purple: #bf5af2;
+            --blue: #0a84ff;
+            --green: #30d158;
+            --red: #ff453a;
+            --yellow: #ffd60a;
+        }
+
+        [data-theme="light"] {
+            --bg: #f5f5f7;
+            --surface: rgba(0, 0, 0, 0.04);
+            --border: rgba(0, 0, 0, 0.1);
+            --text: #1d1d1f;
+            --text-dim: rgba(0, 0, 0, 0.5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            min-height: 100vh;
+            color: var(--text);
+            overflow: hidden;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .grid-bg {
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+            background-size: 60px 60px;
+            pointer-events: none;
+            opacity: 1;
+            transition: opacity 0.3s;
+        }
+
+        [data-theme="light"] .grid-bg {
+            background-image:
+                linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            height: 100vh;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            padding: 20px;
+            gap: 16px;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            letter-spacing: -0.4px;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* Network Indicator */
+        .network-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .network-bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+            height: 16px;
+        }
+
+        .network-bar {
+            width: 4px;
+            background: var(--green);
+            border-radius: 1px;
+            transition: all 0.3s;
+        }
+
+        .network-bar:nth-child(1) {
+            height: 4px;
+        }
+
+        .network-bar:nth-child(2) {
+            height: 8px;
+        }
+
+        .network-bar:nth-child(3) {
+            height: 12px;
+        }
+
+        .network-bar:nth-child(4) {
+            height: 16px;
+        }
+
+        .network-bars.fair .network-bar:nth-child(4) {
+            background: var(--text-dim);
+        }
+
+        .network-bars.fair .network-bar:nth-child(3),
+        .network-bars.fair .network-bar:nth-child(2),
+        .network-bars.fair .network-bar:nth-child(1) {
+            background: var(--yellow);
+        }
+
+        .network-bars.poor .network-bar:nth-child(4),
+        .network-bars.poor .network-bar:nth-child(3),
+        .network-bars.poor .network-bar:nth-child(2) {
+            background: var(--text-dim);
+        }
+
+        .network-bars.poor .network-bar:nth-child(1) {
+            background: var(--red);
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
+        }
+
+        /* Theme Toggle */
+        .theme-toggle {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .theme-toggle:hover {
+            background: rgba(0, 255, 213, 0.1);
+            border-color: var(--cyan);
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 16px;
+            border-radius: 999px;
+            font-size: 12px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+        }
+
+        /* Interview Timer */
+        .interview-timer {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+        }
+
+        .interview-timer.active {
+            display: flex;
+        }
+
+        .interview-timer .timer-icon {
+            color: var(--cyan);
+        }
+
+        .interview-timer.warning {
+            border-color: var(--yellow);
+            color: var(--yellow);
+        }
+
+        .interview-timer.critical {
+            border-color: var(--red);
+            color: var(--red);
+            animation: blink 1s infinite;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #3a3a3c;
+            transition: all 0.3s;
+        }
+
+        .status-badge.active .status-dot {
+            background: var(--cyan);
+            box-shadow: 0 0 15px var(--cyan);
+            animation: pulseGlow 2s infinite;
+        }
+
+        @keyframes pulseGlow {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        /* Main Layout */
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr 380px;
+            gap: 16px;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .glass {
+            background: var(--surface);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            transition: background 0.3s, border-color 0.3s;
+        }
+
+        .panel-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-dim);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-label::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--cyan);
+        }
+
+        /* Video Panel */
+        .video-panel {
+            position: relative;
+        }
+
+        .video-container {
+            flex: 1;
+            border-radius: 16px;
+            overflow: hidden;
+            background: #0a0a0a;
+            position: relative;
+        }
+
+        [data-theme="light"] .video-container {
+            background: #e5e5e5;
+        }
+
+        .video-feed {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            transform: scaleX(-1);
+        }
+
+        .video-controls {
+            position: absolute;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .video-container:hover .video-controls {
+            opacity: 1;
+        }
+
+        .video-btn {
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            border: 1px solid var(--border);
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(20px);
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .video-btn:hover {
+            background: rgba(0, 255, 213, 0.15);
+            border-color: var(--cyan);
+        }
+
+        .video-btn.active {
+            background: rgba(255, 69, 58, 0.5);
+            border-color: var(--red);
+        }
+
+        .listening-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            padding: 6px 14px;
+            background: rgba(48, 209, 88, 0.15);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(48, 209, 88, 0.3);
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--green);
+            display: none;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .listening-badge.active {
+            display: flex;
+        }
+
+        .listening-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--green);
+            border-radius: 50%;
+            animation: pulseGlow 1.5s infinite;
+        }
+
+        /* AI Holographic Panel */
+        .ai-orb-panel {
+            align-items: center;
+            justify-content: center;
+        }
+
+        .holo-container {
+            position: relative;
+            width: 260px;
+            height: 260px;
+        }
+
+        .ring {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            border: 2px solid transparent;
+        }
+
+        .ring-1 {
+            border-color: rgba(0, 255, 213, 0.4);
+            box-shadow: 0 0 20px rgba(0, 255, 213, 0.2);
+            animation: spin 10s linear infinite;
+        }
+
+        .ring-2 {
+            inset: 20px;
+            border-color: rgba(191, 90, 242, 0.4);
+            box-shadow: 0 0 20px rgba(191, 90, 242, 0.2);
+            animation: spin 14s linear infinite reverse;
+        }
+
+        .ring-3 {
+            inset: 40px;
+            border-color: rgba(10, 132, 255, 0.4);
+            box-shadow: 0 0 20px rgba(10, 132, 255, 0.2);
+            animation: spin 8s linear infinite;
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .ai-orb {
+            position: absolute;
+            inset: 60px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%,
+                    rgba(0, 255, 213, 0.5),
+                    rgba(191, 90, 242, 0.4) 40%,
+                    rgba(10, 132, 255, 0.3) 70%,
+                    rgba(0, 0, 0, 0.9));
+            box-shadow:
+                0 0 60px rgba(0, 255, 213, 0.5),
+                0 0 120px rgba(191, 90, 242, 0.3),
+                inset 0 0 40px rgba(255, 255, 255, 0.1);
+            animation: idleGlow 6s ease-in-out infinite;
+        }
+
+        .ai-orb.speaking {
+            animation: speakPulse 1.2s ease-in-out infinite;
+        }
+
+        @keyframes idleGlow {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.02);
+            }
+        }
+
+        @keyframes speakPulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 60px rgba(0, 255, 213, 0.5);
+            }
+
+            50% {
+                transform: scale(1.08);
+                box-shadow: 0 0 100px rgba(0, 255, 213, 0.8), 0 0 150px rgba(191, 90, 242, 0.5);
+            }
+        }
+
+        .waveform {
+            display: flex;
+            gap: 5px;
+            height: 40px;
+            align-items: flex-end;
+            opacity: 0;
+            transition: opacity 0.3s;
+            margin-top: 24px;
+        }
+
+        .waveform.active {
+            opacity: 1;
+        }
+
+        .waveform span {
+            width: 5px;
+            height: 8px;
+            background: linear-gradient(180deg, var(--cyan), var(--purple));
+            border-radius: 3px;
+            box-shadow: 0 0 8px var(--cyan);
+            animation: modernWave 1.2s ease-in-out infinite;
+        }
+
+        .waveform span:nth-child(1) {
+            animation-delay: 0s;
+        }
+
+        .waveform span:nth-child(2) {
+            animation-delay: 0.15s;
+        }
+
+        .waveform span:nth-child(3) {
+            animation-delay: 0.3s;
+        }
+
+        .waveform span:nth-child(4) {
+            animation-delay: 0.45s;
+        }
+
+        .waveform span:nth-child(5) {
+            animation-delay: 0.6s;
+        }
+
+        @keyframes modernWave {
+
+            0%,
+            100% {
+                height: 8px;
+                opacity: 0.4;
+            }
+
+            50% {
+                height: 40px;
+                opacity: 1;
+            }
+        }
+
+        .listening-indicator {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: rgba(48, 209, 88, 0.1);
+            border: 1px solid rgba(48, 209, 88, 0.3);
+            border-radius: 999px;
+            font-size: 13px;
+            color: var(--green);
+            display: none;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .listening-indicator.active {
+            display: flex;
+        }
+
+        /* Chat Panel */
+        .chat-panel {
+            max-height: 100%;
+            overflow: hidden;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding-right: 8px;
+        }
+
+        .chat-messages::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 2px;
+        }
+
+        .message {
+            padding: 12px 16px;
+            border-radius: 16px;
+            font-size: 13px;
+            line-height: 1.6;
+            animation: fadeInMessage 0.3s ease-out;
+            max-width: 90%;
+        }
+
+        @keyframes fadeInMessage {
+            from {
+                opacity: 0;
+                transform: translateY(5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.ai {
+            background: linear-gradient(135deg, rgba(0, 255, 213, 0.1), rgba(191, 90, 242, 0.1));
+            border: 1px solid rgba(0, 255, 213, 0.2);
+            align-self: flex-start;
+        }
+
+        .message.user {
+            background: rgba(48, 209, 88, 0.1);
+            border: 1px solid rgba(48, 209, 88, 0.2);
+            align-self: flex-end;
+        }
+
+        .message.typing {
+            opacity: 0.7;
+        }
+
+        .message-label {
+            font-size: 10px;
+            font-weight: 600;
+            opacity: 0.6;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 14px;
+        }
+
+        .btn {
+            padding: 14px 32px;
+            border-radius: 999px;
+            border: none;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--cyan), var(--blue));
+            color: #000;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(0, 255, 213, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto 1fr;
+            }
+
+            .holo-container {
+                width: 200px;
+                height: 200px;
+            }
+
+            .header {
+                flex-direction: column;
+                gap: 12px;
+            }
+        }
+
+        .material-symbols-rounded {
+            font-size: 22px;
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="grid-bg"></div>
+
+    <div class="container">
+        <div class="header">
+            <div class="header-left">
+                <h1>🎙️ AI Voice Interview</h1>
+            </div>
+            <div class="header-right">
+                <div class="network-indicator" id="networkIndicator">
+                    <div class="network-bars" id="networkBars">
+                        <div class="network-bar"></div>
+                        <div class="network-bar"></div>
+                        <div class="network-bar"></div>
+                        <div class="network-bar"></div>
+                    </div>
+                    <span id="networkSpeed">Checking...</span>
+                </div>
+                <button class="theme-toggle material-symbols-rounded" id="themeToggle" onclick="toggleTheme()">
+                    dark_mode
+                </button>
+                <div class="interview-timer" id="interviewTimer">
+                    <span class="timer-icon">⏱️</span>
+                    <span id="timerDisplay">30:00</span>
+                </div>
+                <div class="status-badge" id="statusBadge">
+                    <span class="status-dot"></span>
+                    <span id="statusText">Ready to Start</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="glass video-panel">
+                <div class="panel-label">Candidate</div>
+                <div class="video-container">
+                    <video id="videoFeed" class="video-feed" autoplay playsinline muted></video>
+                    <div class="listening-badge" id="listeningBadge">
+                        <div class="listening-dot"></div>
+                        Listening
+                    </div>
+                    <div class="video-controls">
+                        <button class="video-btn material-symbols-rounded" id="toggleCamera"
+                            onclick="toggleCamera()">videocam</button>
+                        <button class="video-btn material-symbols-rounded" id="toggleMic"
+                            onclick="toggleMic()">mic</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass ai-orb-panel">
+                <div class="panel-label">AI Interviewer</div>
+                <div class="holo-container">
+                    <div class="ring ring-1"></div>
+                    <div class="ring ring-2"></div>
+                    <div class="ring ring-3"></div>
+                    <div class="ai-orb" id="aiOrb"></div>
+                </div>
+                <div class="waveform" id="waveform">
+                    <span></span><span></span><span></span><span></span><span></span>
+                </div>
+                <div class="listening-indicator" id="listeningIndicator">🎤 Listening to your answer...</div>
+            </div>
+
+            <div class="glass chat-panel">
+                <div class="panel-label">💬 Live Conversation</div>
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message ai">
+                        <div class="message-label">AI Interviewer</div>
+                        <div>Click "Start Interview" to begin</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-primary" id="startBtn" onclick="startInterview()">▶️ Start Interview</button>
+            <button class="btn btn-secondary" id="stopBtn" onclick="stopInterview()" disabled>⏹️ End Interview</button>
+        </div>
+    </div>
+
+    <script>
+        // Audio Context for click sounds
+        let clickAudioCtx = null;
+
+        function playClickSound(type = 'start') {
+            if (!clickAudioCtx) clickAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = clickAudioCtx.createOscillator();
+            const gain = clickAudioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(clickAudioCtx.destination);
+
+            if (type === 'start') {
+                osc.frequency.setValueAtTime(800, clickAudioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1200, clickAudioCtx.currentTime + 0.1);
+            } else {
+                osc.frequency.setValueAtTime(600, clickAudioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(300, clickAudioCtx.currentTime + 0.15);
+            }
+
+            gain.gain.setValueAtTime(0.3, clickAudioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, clickAudioCtx.currentTime + 0.15);
+            osc.start(clickAudioCtx.currentTime);
+            osc.stop(clickAudioCtx.currentTime + 0.15);
+        }
+
+        // Theme Toggle
+        function toggleTheme() {
+            const body = document.body;
+            const btn = document.getElementById('themeToggle');
+            const isLight = body.dataset.theme === 'light';
+
+            body.dataset.theme = isLight ? '' : 'light';
+            btn.textContent = isLight ? 'dark_mode' : 'light_mode';
+            localStorage.setItem('theme', body.dataset.theme);
+        }
+
+        // Load saved theme
+        (function () {
+            const saved = localStorage.getItem('theme');
+            if (saved === 'light') {
+                document.body.dataset.theme = 'light';
+                document.getElementById('themeToggle').textContent = 'light_mode';
+            }
+        })();
+
+        // Network Monitoring
+        let networkQuality = 'good';
+        const API_BASE = 'https://ai-audio-interview.onrender.com';
+
+        async function checkNetwork() {
+            const start = Date.now();
+            try {
+                const res = await fetch(`${API_BASE}/api/network-info`, { cache: 'no-store' });
+                const data = await res.json();
+                const latency = Date.now() - start;
+
+                const bars = document.getElementById('networkBars');
+                const text = document.getElementById('networkSpeed');
+
+                if (latency < 100) {
+                    networkQuality = 'good';
+                    bars.className = 'network-bars';
+                    text.textContent = `${latency}ms • Good`;
+                } else if (latency < 300) {
+                    networkQuality = 'fair';
+                    bars.className = 'network-bars fair';
+                    text.textContent = `${latency}ms • Fair`;
+                } else {
+                    networkQuality = 'poor';
+                    bars.className = 'network-bars poor';
+                    text.textContent = `${latency}ms • Poor`;
+                    // Notify AI about poor network
+                    if (isActive && ws?.readyState === WebSocket.OPEN) {
+                        sendSystemMessage('[SYSTEM: User network is POOR - high latency detected]');
+                    }
+                }
+            } catch (e) {
+                document.getElementById('networkSpeed').textContent = 'Offline';
+                document.getElementById('networkBars').className = 'network-bars poor';
+                networkQuality = 'poor';
+            }
+        }
+
+        checkNetwork();
+        setInterval(checkNetwork, 5000);
+
+        // Main Interview Logic
+        let ws = null, videoInterval = null, audioContext = null, playbackContext = null;
+        let mediaStream = null, videoStream = null, processor = null;
+        let isActive = false, nextPlayTime = 0, isCameraOn = true, isMicOn = true;
+        let currentAIMessage = null, currentUserMessage = null;
+        let aiTextBuffer = "", userTextBuffer = "", userIsSpeaking = false;
+
+        // Silent user detection (30s prompt, 50s warning, 60s end)
+        let lastUserSpeechTime = Date.now();
+        let silenceCheckInterval = null;
+        let silenceWarningLevel = 0; // 0=none, 1=30s, 2=50s, 3=ending
+        let aiIsSpeaking = false; // Track if AI is currently speaking
+        let autoEndScheduled = false; // Track if auto-end is already scheduled
+
+        // Interview Timer (30 minutes = 1800 seconds)
+        const INTERVIEW_DURATION = 30 * 60; // 30 minutes
+        let interviewStartTime = null;
+        let timerInterval = null;
+
+        const SAMPLE_RATE = 24000;
+        const WS_URL = 'wss://ai-audio-interview.onrender.com/ws/interview';
+
+        async function initCamera() {
+            try {
+                videoStream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+                    audio: false
+                });
+                document.getElementById('videoFeed').srcObject = videoStream;
+            } catch (e) { console.error('Camera error:', e); }
+        }
+        initCamera();
+
+        function toggleCamera() {
+            const track = videoStream?.getVideoTracks()[0];
+            if (!track) return;
+            isCameraOn = !isCameraOn;
+            track.enabled = isCameraOn;
+            const btn = document.getElementById('toggleCamera');
+            btn.textContent = isCameraOn ? 'videocam' : 'videocam_off';
+            btn.classList.toggle('active', !isCameraOn);
+        }
+
+        function toggleMic() {
+            const track = mediaStream?.getAudioTracks()[0];
+            if (!track) return;
+            isMicOn = !isMicOn;
+            track.enabled = isMicOn;
+            const btn = document.getElementById('toggleMic');
+            btn.textContent = isMicOn ? 'mic' : 'mic_off';
+            btn.classList.toggle('active', !isMicOn);
+        }
+
+        function updateStatus(text, active = false) {
+            document.getElementById('statusText').textContent = text;
+            document.getElementById('statusBadge').classList.toggle('active', active);
+        }
+
+        function addMessage(text, isAI = true) {
+            const chat = document.getElementById('chatMessages');
+            const msg = document.createElement('div');
+            msg.className = `message ${isAI ? 'ai' : 'user'}`;
+            msg.innerHTML = `<div class="message-label">${isAI ? 'AI Interviewer' : 'You'}</div><div>${text}</div>`;
+            chat.appendChild(msg);
+            chat.scrollTop = chat.scrollHeight;
+            return msg;
+        }
+
+        function finalizeUserIfOpen() {
+            if (currentUserMessage) {
+                currentUserMessage.classList.remove('typing');
+                currentUserMessage = null;
+            }
+            userTextBuffer = "";
+            userIsSpeaking = false;
+        }
+
+        function updateLiveMessage(text, isAI = true) {
+            const chat = document.getElementById('chatMessages');
+            if (isAI) {
+                if (!currentAIMessage) {
+                    currentAIMessage = document.createElement('div');
+                    currentAIMessage.className = 'message ai typing';
+                    currentAIMessage.innerHTML = `<div class="message-label">AI Interviewer</div><div class="content">${text}</div>`;
+                    chat.appendChild(currentAIMessage);
+                } else {
+                    currentAIMessage.querySelector('.content').textContent = text;
+                }
+            } else {
+                if (!currentUserMessage) {
+                    currentUserMessage = document.createElement('div');
+                    currentUserMessage.className = 'message user typing';
+                    currentUserMessage.innerHTML = `<div class="message-label">You</div><div class="content">${text}</div>`;
+                    chat.appendChild(currentUserMessage);
+                } else {
+                    currentUserMessage.querySelector('.content').textContent = text;
+                }
+            }
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        function setAvatarSpeaking(speaking) {
+            const orb = document.getElementById('aiOrb');
+            const waveform = document.getElementById('waveform');
+            if (speaking) {
+                orb.classList.add('speaking');
+                waveform.classList.add('active');
+            } else {
+                orb.classList.remove('speaking');
+            }
+        }
+
+        function setListening(listening) {
+            document.getElementById('listeningBadge').classList.toggle('active', listening);
+            document.getElementById('listeningIndicator').classList.toggle('active', listening);
+        }
+
+        function sendSystemMessage(msg) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    clientContent: {
+                        turns: [{ role: "user", parts: [{ text: msg }] }],
+                        turnComplete: true
+                    }
+                }));
+            }
+        }
+
+        function checkSilence() {
+            if (!isActive || aiIsSpeaking) return; // Don't check silence while AI is speaking
+            if (autoEndScheduled) return; // Already ending
+
+            const silentSeconds = (Date.now() - lastUserSpeechTime) / 1000;
+
+            if (silentSeconds >= 60 && silenceWarningLevel < 3) {
+                silenceWarningLevel = 3;
+                autoEndScheduled = true;
+                sendSystemMessage("[SYSTEM] Ending interview due to no response");
+                console.log('Auto-ending interview in 8 seconds...');
+                setTimeout(() => {
+                    console.log('Auto-end triggered!');
+                    stopInterview();
+                }, 8000);
+            } else if (silentSeconds >= 50 && silenceWarningLevel < 2) {
+                silenceWarningLevel = 2;
+                sendSystemMessage("[SYSTEM] Candidate silent for 50 seconds - FINAL WARNING - Interview will end in 10 seconds");
+            } else if (silentSeconds >= 30 && silenceWarningLevel < 1) {
+                silenceWarningLevel = 1;
+                sendSystemMessage("[SYSTEM] Candidate silent for 30 seconds - waiting for response");
+            }
+        }
+
+        function updateTimer() {
+            if (!interviewStartTime) return;
+
+            const elapsed = Math.floor((Date.now() - interviewStartTime) / 1000);
+            const remaining = Math.max(0, INTERVIEW_DURATION - elapsed);
+
+            const mins = Math.floor(remaining / 60);
+            const secs = remaining % 60;
+            const display = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+            document.getElementById('timerDisplay').textContent = display;
+
+            const timerEl = document.getElementById('interviewTimer');
+            timerEl.classList.remove('warning', 'critical');
+
+            if (remaining <= 60) {
+                timerEl.classList.add('critical');
+            } else if (remaining <= 300) {
+                timerEl.classList.add('warning');
+            }
+
+            // Auto-end when timer runs out
+            if (remaining <= 0 && isActive) {
+                sendSystemMessage("[SYSTEM] Interview time limit (30 minutes) reached. Ending interview.");
+                setTimeout(() => stopInterview(), 5000);
+            }
+        }
+
+        async function startInterview() {
+            if (isActive) return;
+            playClickSound('start');
+
+            isActive = true;
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            updateStatus('Connecting...', true);
+
+            lastUserSpeechTime = Date.now();
+            silenceWarningLevel = 0;
+            autoEndScheduled = false;
+            silenceCheckInterval = setInterval(checkSilence, 2000);
+
+            // Start interview timer
+            interviewStartTime = Date.now();
+            document.getElementById('interviewTimer').classList.add('active');
+            timerInterval = setInterval(updateTimer, 1000);
+            updateTimer();
+
+            try {
+                playbackContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: SAMPLE_RATE });
+                nextPlayTime = playbackContext.currentTime;
+                ws = new WebSocket(WS_URL);
+
+                ws.onopen = async function () {
+                    updateStatus('Interview Active', true);
+                    await startAudioStream();
+                    startVideoToGemini();
+
+                    // Send initial greeting + network status
+                    setTimeout(() => {
+                        if (ws?.readyState === WebSocket.OPEN) {
+                            const netMsg = networkQuality === 'poor' ? ' [SYSTEM: User has POOR network connection]' : '';
+                            ws.send(JSON.stringify({
+                                clientContent: {
+                                    turns: [{ role: "user", parts: [{ text: "Start the interview with a greeting" + netMsg }] }],
+                                    turnComplete: true
+                                }
+                            }));
+                        }
+                    }, 500);
+                };
+
+                ws.onmessage = function (event) {
+                    const handleMessage = (text) => {
+                        const msg = JSON.parse(text);
+
+                        if (msg.serverContent?.inputTranscription?.text) {
+                            lastUserSpeechTime = Date.now();
+                            silenceWarningLevel = 0;
+
+                            const chunk = msg.serverContent.inputTranscription.text;
+                            const isFinal = msg.serverContent.inputTranscription.isFinal;
+
+                            if (!userIsSpeaking) {
+                                userIsSpeaking = true;
+                                userTextBuffer = "";
+                                currentUserMessage = null;
+                            }
+
+                            if (!userTextBuffer) {
+                                userTextBuffer = chunk;
+                            } else if (!chunk.startsWith(userTextBuffer)) {
+                                userTextBuffer = (userTextBuffer + " " + chunk).trim();
+                            } else {
+                                userTextBuffer = chunk;
+                            }
+
+                            updateLiveMessage(userTextBuffer, false);
+
+                            if (isFinal) {
+                                if (userTextBuffer.trim().length >= 2) {
+                                    addMessage(userTextBuffer.trim(), false);
+                                }
+                                userTextBuffer = "";
+                                currentUserMessage = null;
+                                userIsSpeaking = false;
+                            }
+                        }
+
+                        if (msg.serverContent?.outputTranscription?.text) {
+                            aiTextBuffer += msg.serverContent.outputTranscription.text;
+                        }
+
+                        if (msg.serverContent?.modelTurn?.parts?.some(p => p.inlineData?.data)) {
+                            finalizeUserIfOpen();
+                            aiIsSpeaking = true; // AI started speaking
+                            setAvatarSpeaking(true);
+                            setListening(false);
+                            msg.serverContent.modelTurn.parts.forEach(p => {
+                                if (p.inlineData?.data) playAudio(p.inlineData.data);
+                            });
+                        }
+
+                        if (msg.serverContent?.generationComplete) {
+                            if (aiTextBuffer.trim()) {
+                                addMessage(aiTextBuffer.trim(), true);
+                                aiTextBuffer = "";
+                            }
+                            aiIsSpeaking = false; // AI finished speaking
+                            // Only reset timer if NOT in warning escalation mode
+                            // This ensures 30s → 50s (20s later) → 60s (10s later) timing is correct
+                            if (silenceWarningLevel === 0) {
+                                lastUserSpeechTime = Date.now();
+                            }
+                            setAvatarSpeaking(false);
+                            setListening(true);
+                        }
+                    };
+
+                    if (event.data instanceof Blob) {
+                        event.data.text().then(handleMessage);
+                    } else {
+                        handleMessage(event.data);
+                    }
+                };
+
+                ws.onerror = () => updateStatus('Connection Error', false);
+                ws.onclose = () => {
+                    updateStatus('Interview Ended', false);
+                    isActive = false;
+                    stopAudioStream();
+                };
+
+            } catch (e) {
+                console.error('Error:', e);
+                updateStatus('Error', false);
+                isActive = false;
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+            }
+        }
+
+        function startVideoToGemini() {
+            const video = document.getElementById("videoFeed");
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+
+            videoInterval = setInterval(() => {
+                if (!ws || ws.readyState !== WebSocket.OPEN || !isCameraOn || !video.videoWidth) return;
+                canvas.width = 480;
+                canvas.height = 270;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const base64 = canvas.toDataURL("image/jpeg", 0.6).split(",")[1];
+                ws.send(JSON.stringify({ realtimeInput: { mediaChunks: [{ mimeType: "image/jpeg", data: base64 }] } }));
+            }, 1000);
+        }
+
+        async function startAudioStream() {
+            mediaStream = await navigator.mediaDevices.getUserMedia({
+                audio: { noiseSuppression: true, echoCancellation: true, autoGainControl: true }
+            });
+
+            audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: SAMPLE_RATE });
+            const source = audioContext.createMediaStreamSource(mediaStream);
+            processor = audioContext.createScriptProcessor(4096, 1, 1);
+            source.connect(processor);
+            processor.connect(audioContext.destination);
+
+            processor.onaudioprocess = (e) => {
+                if (!ws || ws.readyState !== WebSocket.OPEN || !isMicOn) return;
+                const input = e.inputBuffer.getChannelData(0);
+                const buffer = new Int16Array(input.length);
+                for (let i = 0; i < input.length; i++) {
+                    const s = Math.max(-1, Math.min(1, input[i]));
+                    buffer[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                }
+                let binary = '';
+                const bytes = new Uint8Array(buffer.buffer);
+                for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+                ws.send(JSON.stringify({ realtimeInput: { mediaChunks: [{ mimeType: "audio/pcm;rate=" + SAMPLE_RATE, data: btoa(binary) }] } }));
+            };
+            setListening(true);
+        }
+
+        function playAudio(base64) {
+            const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+            const pcm = new Int16Array(bytes.buffer);
+            const float32 = Float32Array.from(pcm, v => v / 32768);
+            const buf = playbackContext.createBuffer(1, float32.length, SAMPLE_RATE);
+            buf.getChannelData(0).set(float32);
+            if (nextPlayTime < playbackContext.currentTime) nextPlayTime = playbackContext.currentTime;
+            const src = playbackContext.createBufferSource();
+            src.buffer = buf;
+            src.connect(playbackContext.destination);
+            src.start(nextPlayTime);
+            nextPlayTime += buf.duration;
+        }
+
+        function stopAudioStream() {
+            mediaStream?.getTracks().forEach(t => t.stop());
+            processor?.disconnect();
+            audioContext?.close();
+            playbackContext?.close();
+            setListening(false);
+            document.getElementById('aiOrb').classList.remove('speaking');
+            document.getElementById('waveform').classList.remove('active');
+        }
+
+        function stopInterview() {
+            playClickSound('end');
+            if (silenceCheckInterval) clearInterval(silenceCheckInterval);
+            if (videoInterval) clearInterval(videoInterval);
+            if (timerInterval) clearInterval(timerInterval);
+            ws?.close();
+            stopAudioStream();
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            isActive = false;
+            autoEndScheduled = false;
+
+            // Hide and reset timer
+            const timerEl = document.getElementById('interviewTimer');
+            timerEl.classList.remove('active', 'warning', 'critical');
+            document.getElementById('timerDisplay').textContent = '30:00';
+            interviewStartTime = null;
+
+            updateStatus('Interview Ended', false);
+        }
+    </script>
+</body>
+
+</html>
